@@ -5,11 +5,15 @@ La idea es crear un piano electrónico, totalmente funcional. A partir de sample
 
 Se puede ver todo el proceso de creación en : 
 
-https://www.youtube.com/watch?v=NcmmS0rcsk8
-
+<iframe width="420" height="315"
+src="https://www.youtube.com/embed/NcmmS0rcsk8">
+</iframe>
 
 Actualmente está así :
 
-https://www.youtube.com/watch?v=I0FfIfT1rkw
+<iframe width="420" height="315"
+src="https://www.youtube.com/embed/I0FfIfT1rkw">
+</iframe>
+
 
 
