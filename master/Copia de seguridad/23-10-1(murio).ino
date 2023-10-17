@@ -7,7 +7,6 @@
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "imagenes.h"
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
@@ -81,8 +80,6 @@ int tamsonido[3];
 float frecuenciasonido[39];
 float possonido[39];
 
-float frecuenciawav[3];
-
 boolean sonidorelleno[3];
 boolean cargarsonido[3];
 int loopsonido[3];
@@ -114,25 +111,18 @@ int notasenteclas[39];
 
 int tiempon=5000;
 
-int menu=0;
-int tiempomenu;
-
-String archivocargado="";
-int color=0;
-byte rcolor=0;
-byte gcolor=0;
-byte bcolor=200;
-
 void cargasonido(int numsonido){
 
-  archivocargado=archivos[posarchivos];
-  menupantalla(); 
-  
+  String nombrearchivo=archivos[posarchivos];
+
  // Serial.print("Se va abrir el archivo : ");
  // Serial.println(nombrearchivo);    
     
-  File file2 = SD.open(archivocargado,"r");  
+  File file2 = SD.open(nombrearchivo,"r");  
   
+  posarchivos++;
+  if(posarchivos>=numarchivos){ posarchivos=0; }
+
   if (!file2) { Serial.println("Failed to open file for reading"); return; }  
   
   
@@ -155,8 +145,7 @@ void cargasonido(int numsonido){
 
   sonidorelleno[numsonido]=true;
 
-  frecuenciawav[numsonido]=523.25;
-  frecuenciasonido[numsonido]=130.81;
+  frecuenciasonido[numsonido]=261.63;
   loopsonido[numsonido]=0;
   possonido[numsonido]=0;
   
@@ -179,52 +168,40 @@ void cargasonido(int numsonido){
 
 
 void luces(){
+
+  if(teclas[0]){  led(0,0,0,200);  }else {  led(0,0,0,0);  }
+  if(teclas[2]){  led(1,0,0,200);  }else {  led(1,0,0,0);  }
+  if(teclas[4]){  led(2,0,0,200);  }else {  led(2,0,0,0);  }
+  if(teclas[5]){  led(3,0,0,200);  }else {  led(3,0,0,0);  }
+  if(teclas[7]){  led(4,0,0,200);  }else {  led(4,0,0,0);  }
+  if(teclas[9]){  led(5,0,0,200);  }else {  led(5,0,0,0);  }
+  if(teclas[11]){ led(6,0,0,200);  }else {  led(6,0,0,0);  }
   
-  if(teclas[0]){  led(0,true);  }else {  led(0,false);  }
-  if(teclas[2]){  led(1,true);  }else {  led(1,false);  }
-  if(teclas[4]){  led(2,true);  }else {  led(2,false);  }
-  if(teclas[5]){  led(3,true);  }else {  led(3,false);  }
-  if(teclas[7]){  led(4,true);  }else {  led(4,false);  }
-  if(teclas[9]){  led(5,true);  }else {  led(5,false);  }
-  if(teclas[11]){ led(6,true);  }else {  led(6,false);  }
+  if(teclas[12]){  led(7,0,0,200);  }else {  led(7,0,0,0);  }
+  if(teclas[14]){  led(8,0,0,200);  }else {  led(8,0,0,0);  }
+  if(teclas[16]){  led(9,0,0,200);  }else {  led(9,0,0,0);  }
+  if(teclas[17]){  led(10,0,0,200);  }else {  led(10,0,0,0);  }
+  if(teclas[19]){  led(11,0,0,200);  }else {  led(11,0,0,0);  }
+  if(teclas[21]){  led(12,0,0,200);  }else {  led(12,0,0,0);  }
+  if(teclas[23]){  led(13,0,0,200);  }else {  led(13,0,0,0);  }
   
-  if(teclas[12]){  led(7,true);  }else {  led(7,false);  }
-  if(teclas[14]){  led(8,true);  }else {  led(8,false);  }
-  if(teclas[16]){  led(9,true);  }else {  led(9,false);  }
-  if(teclas[17]){  led(10,true);  }else {  led(10,false);  }
-  if(teclas[19]){  led(11,true);  }else {  led(11,false);  }
-  if(teclas[21]){  led(12,true);  }else {  led(12,false);  }
-  if(teclas[23]){  led(13,true);  }else {  led(13,false);  }
+  if(teclas[24]){  led(14,0,0,200);  }else {  led(14,0,0,0);  }
+  if(teclas[26]){  led(15,0,0,200);  }else {  led(15,0,0,0);  }
+  if(teclas[28]){  led(16,0,0,200);  }else {  led(16,0,0,0);  }
+  if(teclas[29]){  led(17,0,0,200);  }else {  led(17,0,0,0);  }
+  if(teclas[31]){  led(18,0,0,200);  }else {  led(18,0,0,0);  }
+  if(teclas[33]){  led(19,0,0,200);  }else {  led(19,0,0,0);  }
+  if(teclas[35]){  led(20,0,0,200);  }else {  led(20,0,0,0);  }
   
-  if(teclas[24]){  led(14,true);  }else {  led(14,false);  }
-  if(teclas[26]){  led(15,true);  }else {  led(15,false);  }
-  if(teclas[28]){  led(16,true);  }else {  led(16,false);  }
-  if(teclas[29]){  led(17,true);  }else {  led(17,false);  }
-  if(teclas[31]){  led(18,true);  }else {  led(18,false);  }
-  if(teclas[33]){  led(19,true);  }else {  led(19,false);  }
-  if(teclas[35]){  led(20,true);  }else {  led(20,false);  }
-  
-  if(teclas[36]){  led(21,true);  }else {  led(21,false);  }
-  if(teclas[38]){  led(22,true);  }else {  led(22,false);  }
+  if(teclas[36]){  led(21,0,0,200);  }else {  led(21,0,0,0);  }
+  if(teclas[38]){  led(22,0,0,200);  }else {  led(22,0,0,0);  }
   
   pixels.show();
   
 }
 
-void led(int i,boolean encendido){
-
-    byte r,g,b;
-    if(!encendido){ r=0;g=0;b=0;}
-    else{
-        if(color==6){
-          int c=random(0,5);
-          definecolor(c);                    
-        }
-        r=rcolor;
-        g=gcolor;
-        b=bcolor;                                    
-    }
-    
+void led(int i,int r,int g,int b){
+  
     pixels.setPixelColor(i,pixels.Color(r,g,b));  
     pixels.setPixelColor(45-i,pixels.Color(r,g,b));  
     pixels.setPixelColor(i+46,pixels.Color(r,g,b));  
@@ -292,7 +269,7 @@ void recogeteclas(){
   for(int i=0;i<39;i++){ numeros[i]=0; }
   
   //Serial.println("Miramos teclas");
-  
+  /*
   Wire.requestFrom(I2C_SLAVE_ADDR1,15);
   int contador=0;
   
@@ -307,9 +284,9 @@ void recogeteclas(){
   }
   delay(1);
 
-  Wire.requestFrom(I2C_SLAVE_ADDR2,13);
+  Wire.requestFrom(I2C_SLAVE_ADDR2,15);
   instante=millis();
-  while(contador<28){
+  while(contador<30){
     if(Wire.available()>0){
       numeros[contador] = Wire.read();      
       contador++;
@@ -318,7 +295,7 @@ void recogeteclas(){
   }
   delay(1);
   
-  Wire.requestFrom(I2C_SLAVE_ADDR3,11);
+  Wire.requestFrom(I2C_SLAVE_ADDR3,9);
   instante=millis();
   while(contador<39){
     if(Wire.available()>0){
@@ -329,10 +306,7 @@ void recogeteclas(){
   }
   delay(1);
 
-
-   /*
-  //Comprobamos si play y se tocan las notas solas
- 
+ */
   for(int i=0;i<39;i++){
       if(notasenteclas[i]!=-1){
         if((millis()-tiempomusica)>musicatiempofin[notasenteclas[i]]){
@@ -377,7 +351,7 @@ void recogeteclas(){
 
   }
   
-*/
+
    //int rampa=((int)valorteclas[0])-((int)numeros[0]);
    //Serial.println(rampa);
     
@@ -408,7 +382,7 @@ void recogeteclas(){
 
   */
   
-  float f=130.81;
+  float f=130.61;
     
   for(byte i=0;i<39;i++){
 
@@ -446,80 +420,54 @@ void recogeteclas(){
   
 }
 
-void actualizacolor(){
-
-  definecolor(color);
-
-  menupantalla();
-
-  compruebaluces();
-  
-}
 
 boolean pulsacionbotones(){
-
-  int valor=analogRead(36); //Boton Derecha
-  //Serial.println(valor);
-  if(valor<255){ 
-    menu++;
-    if(menu>2){ menu=0;}
-    menupantalla();
+  
+    pulsado=false;
+    instante=millis();
     
-  }
-  
-  valor=analogRead(39); //Boton Izquierda
-  if(valor<255){ 
-    menu--;
-    if(menu<0){ menu=2;}
-    menupantalla();    
-  }
+    digitalWrite(22,HIGH);delay(2);
+    lectura(39,0);
+    lectura(34,1);
+    lectura(35,2);
+    lectura(36,3);
+    digitalWrite(22,LOW);delay(2);
+    
+    digitalWrite(4,HIGH);delay(2);
+    lectura(39,4);
+    lectura(34,5);
+    lectura(35,6);
+    lectura(36,7);
+    digitalWrite(4,LOW);delay(2);
 
-  
-  valor=analogRead(34);if(valor<255){  //Boton Abajo
 
-     if(menu==0){
-        posarchivos--;
-        if(posarchivos<0){ posarchivos=numarchivos-1; }
-        cargarsonido[botonseleccionado]=true;
-     }else if(menu==1){
-        color--;
-        if(color<0){ color=6; }
-        actualizacolor();
-     }else if(menu==2){
-        
-        frecuenciawav[botonseleccionado]/=1.06;
-        menupantalla();  
-     }
-  }
-  
-  valor=analogRead(35);if(valor<255){ //Boton Arriba
+    digitalWrite(13,HIGH);delay(2);
+    lectura(39,8);
+    lectura(34,9);
+    lectura(35,10);
+    lectura(36,11);
+    digitalWrite(13,LOW);delay(2); 
+
+    digitalWrite(15,HIGH);delay(2);
+    lectura(36,12);
+    lectura(34,13);
+    digitalWrite(15,LOW);delay(2);
+    
+
+   /*
+    
+    for(int i=0;i<14;i++){
+      if(botones[i]){
+        Serial.print("Boton ");
+        Serial.print(i);      
+        Serial.print(" : ");
+        Serial.println(valorbotones[i]);
+      }      
+    }
+    
+   */
      
-     if(menu==0){
-        posarchivos++;
-        if(posarchivos>=numarchivos){ posarchivos=0; }
-        cargarsonido[botonseleccionado]=true;        
-     }else if(menu==1){
-        color++;
-        if(color>6){ color=0; }
-        actualizacolor();
-     }else if(menu==2){
-        frecuenciawav[botonseleccionado]*=1.06;
-        menupantalla();  
-     }
-      
-  }
-  
-  valor=analogRead(32);if(valor<255){ ponerenpantalla("Boton 5"); }
-  
-    
-    
-  if(digitalRead(33)==LOW){ ponerenpantalla("Boton 6"); }
-  if(digitalRead(13)==LOW){ ponerenpantalla("Boton 7"); }
-  if(digitalRead(15)==LOW){ ponerenpantalla("Boton 8"); }
-  if(digitalRead(4)==LOW){ ponerenpantalla("Boton 9"); }
-      
-
-  return pulsado;
+    return pulsado;
     
 }
 
@@ -647,7 +595,6 @@ void actualizasonidos(){
       if(cargarsonido[i]){ 
         cargasonido(i);         
         cargarsonido[i]=false;
-        
       }      
   }  
 }
@@ -661,8 +608,6 @@ void reproduce(){
   boolean consonido=false;
   
   for(;;){
-
-    int nsonidos=0;
 
     consonido=false;
 
@@ -678,7 +623,9 @@ void reproduce(){
   
             consonido=true;
             
-            float vel=frecuenciasonido[jj]/frecuenciawav[i];    
+            float frecuenciawav=523.25;
+      
+            float vel=frecuenciasonido[jj]/frecuenciawav;    
             vel=vel*2;
     
             int ii=(int)possonido[jj];
@@ -697,8 +644,7 @@ void reproduce(){
 
             float dat=(dat1*(1-p))+(dat2*p);
   
-            valormuestra+=(int32_t)dat;  
-            nsonidos++;          
+            valormuestra+=(int32_t)dat;            
                        
             possonido[jj]+=vel;
             
@@ -712,8 +658,6 @@ void reproduce(){
 
     boolean sigue=true;
     int32_t dato2=valormuestra;
-
-    if(nsonidos!=0){ dato2=dato2/nsonidos; }
     
     if(!consonido){
       
@@ -774,124 +718,16 @@ void metenotas(int nota){
       musicatam++;  
 }
 
-
-void logoenpantalla(){
-  display.clearDisplay();
-  display.drawBitmap(0,0,logo,128,64, WHITE);  
-  display.display();     
-}
-
-String recortatexto(String texto){
-
-  String texto2=texto.substring(0,18);
-
-  return texto2;
-  
-}
-
-void drawCentreString(String texto, int x, int y)
-{
-    int str_len = texto.length() + 1; 
-    char buf[str_len];
-    texto.toCharArray(buf,str_len);
-
-    int16_t x1, y1;
-    uint16_t w, h;
-
-    display.setTextSize(1);
-    display.getTextBounds(buf,0,0, &x1, &y1, &w, &h); //calc width of new string
-    display.setCursor(x - w / 2, y);
-
-   // Serial.print("X1 : ");
-   // Serial.println(x1);
-   // Serial.print("W : ");
-   // Serial.println(w);
-    display.print(buf);
-}
-
-void menupantalla(){
-  display.clearDisplay();
-  if(menu==0){
-    display.drawBitmap(39,0,nota,50,50, WHITE); 
-    
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    String texto=recortatexto(archivocargado);
-    drawCentreString(texto,64,52);
-   
-  }else if(menu==1){
-    display.drawBitmap(39,0,colores,50,50, WHITE);  
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    String texto;
-    if(color==0){ texto=recortatexto("AZUL");}
-    else if(color==1){ texto=recortatexto("ROJO");}
-    else if(color==2){ texto=recortatexto("VERDE");}
-    else if(color==3){ texto=recortatexto("NARANJA");}
-    else if(color==4){ texto=recortatexto("ROSA");}
-    else if(color==5){ texto=recortatexto("BLANCO");}
-    else if(color==6){ texto=recortatexto("MULTICOLOR");}
-    
-    drawCentreString(texto,64,52);
-    
-  }else if(menu==2){
-    display.drawBitmap(39,0,pitch,50,50, WHITE);  
-    String texto="";
-    texto+=frecuenciawav[botonseleccionado];    
-    texto+=" Hz";
-    drawCentreString(texto,64,52);    
-  }  
-
-  display.drawBitmap(10,29,triangulo1,10,10, WHITE);  
-  display.drawBitmap(107,29,triangulo2,10,10, WHITE);  
-  
-  display.display();     
-  tiempomenu=millis();
-}
-
-
 void ponerenpantalla(String texto){
 
   display.clearDisplay();
-  display.setTextSize(4);
+
+  display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0,0);
+  display.setCursor(0, 10);
   // Display static text
   display.println(texto);
   display.display(); 
-
-}
-
-void definecolor(int colordefinido){
-
-  if(colordefinido==0){ rcolor=0;gcolor=0;bcolor=200;}
-  else if(colordefinido==1){ rcolor=200;gcolor=0;bcolor=0;}
-  else if(colordefinido==2){ rcolor=0;gcolor=200;bcolor=0;}
-  else if(colordefinido==3){ rcolor=200;gcolor=100;bcolor=50;}
-  else if(colordefinido==4){ rcolor=100;gcolor=50;bcolor=100;}
-  else if(colordefinido==5){ rcolor=50;gcolor=50;bcolor=50;}
-  
-}
-
-void compruebaluces(){
-  
-  pixels.begin();
-  delay(10);
-  for(int i=0;i<69;i++){
-    if(color==6){
-          int c=random(0,5);
-          definecolor(c);                    
-    }
-    pixels.setPixelColor(i,pixels.Color(rcolor,gcolor,bcolor));   
-    delay(10);
-    pixels.show();
-  }    
-
-  for(int i=68;i>=0;i--){
-    pixels.setPixelColor(i,pixels.Color(0,0,0));      
-    delay(10);
-    pixels.show(); 
-  }
   
 }
 
@@ -905,8 +741,7 @@ void setup() {
     Serial.println(F("SSD1306 allocation failed"));
     for(;;);
   }
-
-  logoenpantalla();
+  
     
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
     
@@ -915,27 +750,32 @@ void setup() {
   pinMode(13,OUTPUT);
   pinMode(15,OUTPUT);
 
-  pinMode(36,INPUT_PULLUP);
-  pinMode(39,INPUT_PULLUP);
-  pinMode(34,INPUT_PULLUP);
-  pinMode(35,INPUT_PULLUP);
-  pinMode(32,INPUT_PULLUP);
-  pinMode(33,INPUT_PULLUP);
-  pinMode(13,INPUT_PULLUP);
-  pinMode(15,INPUT_PULLUP);
-  pinMode(4,INPUT_PULLUP);
-  
+  pinMode(34,INPUT);
+  pinMode(35,INPUT);
+  pinMode(36,INPUT);
+  pinMode(39,INPUT);
+ 
   analogReadResolution(8);
   
-  compruebaluces();
+  pixels.begin();
+  delay(100);
+  for(int i=0;i<69;i++){
+    pixels.setPixelColor(i,pixels.Color(0,0,200));   
+    delay(100);
+    pixels.show();
+  }    
+
+  for(int i=68;i>=0;i--){
+    pixels.setPixelColor(i,pixels.Color(0,0,0));      
+    delay(100);
+    pixels.show(); 
+  }
   
-  
+    
 
   tiempob=millis();
   Serial.println("PIANO TURMANDREAMS");
-  
-  
-  
+    
   // Configurar la configuración del bus I2S  PCM5102
   
   i2sConfig.mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX);
@@ -1003,10 +843,7 @@ void setup() {
 
   cargarsonido[botonseleccionado]=true;
 
-  tiempomenu=millis();
-
-  menupantalla(); 
-  
+    
 }
 
 
@@ -1015,7 +852,7 @@ void Task1code( void * pvParameters ){    // en este Core recogemos las peticion
     
   for(;;){   
     
-    if((millis()-tiempomenu)>200){ pulsacionbotones();}
+    //pulsacionbotones();
     recogeteclas();
     revisaloop();
     //control();

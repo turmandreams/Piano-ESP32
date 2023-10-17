@@ -8,10 +8,10 @@
 
 int pos=0;
 
-float valor[15];
-float minimo[15];
-float maximo[15];
-byte val[15];
+float valor[13];
+float minimo[13];
+float maximo[13];
+byte val[13];
 
 void funcion(int dato){
 
@@ -39,7 +39,10 @@ void funcion(int dato){
   val[pos]=datoB;
 
   //Serial.println(datoB);
-   
+
+  //Serial.print(datoB);
+  //Serial.print(",");
+  
   pos++;
 
   
@@ -58,17 +61,17 @@ void setup() {
   pinMode(35,INPUT);
   pinMode(32,INPUT);
   pinMode(33,INPUT);
-  pinMode(25,INPUT);
-  pinMode(26,INPUT);
+  pinMode(4,INPUT); 
+  pinMode(2,INPUT);
   pinMode(27,INPUT);
   pinMode(14,INPUT);
   pinMode(12,INPUT);
   pinMode(13,INPUT);
   pinMode(15,INPUT);
-  pinMode(2,INPUT);
-  pinMode(4,INPUT);
 
-  for(int i=0;i<15;i++){
+
+
+  for(int i=0;i<13;i++){
       valor[i]=0;
       maximo[i]=0;  
       minimo[i]=5000;  
@@ -86,24 +89,22 @@ void loop() {
   dato=analogRead(35);funcion(dato);
   dato=analogRead(32);funcion(dato);
   dato=analogRead(33);funcion(dato);
-  dato=analogRead(25);funcion(dato);
-  dato=analogRead(26);funcion(dato);
+  dato=analogRead(4);funcion(dato);
+  dato=analogRead(2);funcion(dato);
   dato=analogRead(27);funcion(dato);
   dato=analogRead(14);funcion(dato);
   dato=analogRead(12);funcion(dato);
   dato=analogRead(13);funcion(dato);
   dato=analogRead(15);funcion(dato);
-  dato=analogRead(2);funcion(dato);
-  dato=analogRead(4);funcion(dato);
-
  
-  
+ 
+  //Serial.println("");
 }
 
 void handler(){
 
   
-    for(byte i=0;i<15;i++){
+    for(byte i=0;i<13;i++){
         Wire.write(val[i]);
     }
 

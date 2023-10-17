@@ -37,6 +37,8 @@ void funcion(int dato){
   if(((int)maximo[pos])-((int)minimo[pos])<100){ datoB=0; }
   
   val[pos]=datoB;
+  //Serial.print(datoB);
+  //Serial.print(",");
      
   pos++;
 
@@ -94,7 +96,7 @@ void loop() {
   dato=analogRead(2);funcion(dato);
   dato=analogRead(4);funcion(dato);
 
- 
+  //rSerial.println("");
   
 }
 
