@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <Adafruit_NeoPixel.h>
 #include <driver/i2s.h>
 #include "soc/soc.h"
@@ -8,9 +9,13 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "imagenes.h"
+#include "sonidos.h"
+
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
+
+#define eeprominicio 0
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
@@ -45,6 +50,16 @@ Adafruit_NeoPixel pixels = Adafruit_NeoPixel(69, PIN, NEO_GRB + NEO_KHZ800);
 #include <SPI.h>
 #include <SD.h>
 
+union Float_Byte{
+  float datoF;
+  byte  datoB[4];
+}unionFB;
+
+union Int_Byte{
+  int datoI;
+  byte  datoB[2];
+}unionIB;
+
 
 TaskHandle_t Task1;
 
@@ -53,13 +68,8 @@ File file;
 
 String archivos[100];
 int numarchivos=0;
-int posarchivos=0;
+int posarchivos[4];
 
-boolean botones[14];
-int valorbotones[14];
-int tiempobotones[14];
-
-int tiempob;
 boolean pulsado=false;
 
 // Configuración del bus I2S PCM5102
@@ -75,154 +85,359 @@ float volumen=0.4;
 
 int limitepulsacion=5;
 
+
+int sonidocanal[4];
+boolean sonidocargado[3];
+
 byte sonido[3][25000];
-int tamsonido[3];
+int tamsonido[4];
 
-float frecuenciasonido[39];
-float possonido[39];
+float frecuenciasonido[4][39];
+float possonido[4][39];
 
-float frecuenciawav[3];
-
-boolean sonidorelleno[3];
-boolean cargarsonido[3];
-int loopsonido[3];
-int looptiempo[3];
+float frecuenciawav[4];
+boolean cargarsonido[4];
 
 boolean play=false;
 
 int instante;
 
-int botonseleccionado=0;
+int canalseleccionado=0;
 
-int tiempoluces;
-int tiempo;
+boolean teclas[4][39];
+int tiempoteclas[4][39];
 
-boolean teclas[39];
-int tiempoteclas[39];
+byte valorteclas[4][39];
 
-byte valorteclas[39];
+float volumenteclas[4][39];
 
-float volumenteclas[39];
+int notasenteclas[4][39];
+byte musicanotas[4][250];
+uint16_t musicatiempoinicio[4][250];
+uint16_t musicatiempofin[4][250];
 
-byte musicanotas[1000];
-uint16_t musicatiempoinicio[1000];
-uint16_t musicatiempofin[1000];
-int musicaposicion=0;
-int tiempomusica;
-int musicatam=0;
-int notasenteclas[39];
+int musicaposicion[4];
+int tiempomusica[4];
+int musicatam[4];
 
-int tiempon=5000;
+int musicadelay[4];
+
+int tiempoinicio=0;
 
 int menu=0;
 int tiempomenu;
 
-String archivocargado="";
-int color=0;
-byte rcolor=0;
-byte gcolor=0;
-byte bcolor=200;
+String archivocargado[4];
+int color[4];
+byte rcolor[4];
+byte gcolor[4];
+byte bcolor[4];
 
-void cargasonido(int numsonido){
+int colordefondo=0;
 
-  archivocargado=archivos[posarchivos];
-  menupantalla(); 
-  
- // Serial.print("Se va abrir el archivo : ");
- // Serial.println(nombrearchivo);    
+boolean nivelteclas[4];
+float efectochorus[4];
+
+boolean grabando=false;
+boolean playing[4];
+
+boolean menuplaying=false;
+
+
+void carga() {
+
+    yield();
+    EEPROM.begin(512);
+    int addr=eeprominicio;    
+   
+   for(int i=0;i<4;i++){
+
+    EEPROM.get(addr,unionIB.datoB[0]);addr++;
+    EEPROM.get(addr,unionIB.datoB[1]);addr++;
+    posarchivos[i]=unionIB.datoI;
     
-  File file2 = SD.open(archivocargado,"r");  
-  
-  if (!file2) { Serial.println("Failed to open file for reading"); return; }  
-  
-  
-  byte header[44];file2.read(header,44);
+    
+    EEPROM.get(addr,unionIB.datoB[0]);addr++;
+    EEPROM.get(addr,unionIB.datoB[1]);addr++;
+    color[i]=unionIB.datoI;
+    definecolor(i,color[i]);          
 
-  tamsonido[numsonido]=file2.read(sonido[numsonido],25000);
-  
-  
-  /*  
-  while (file2.available()) {
-    byte dato=file2.read();
-    sonido[tamsonido]=dato;
-    tamsonido++;
-    if(tamsonido>=100000){ break;}
+    EEPROM.get(addr,unionFB.datoB[0]);addr++;
+    EEPROM.get(addr,unionFB.datoB[1]);addr++;
+    EEPROM.get(addr,unionFB.datoB[2]);addr++;
+    EEPROM.get(addr,unionFB.datoB[3]);addr++;
+    frecuenciawav[i]=unionFB.datoF;
+
+    byte nivel;
+    EEPROM.get(addr,nivel);addr++;
+
+    if(nivel==0){ nivelteclas[i]=false; }
+    else{ nivelteclas[i]=true; }
+    
+    EEPROM.get(addr,unionFB.datoB[0]);addr++;
+    EEPROM.get(addr,unionFB.datoB[1]);addr++;
+    EEPROM.get(addr,unionFB.datoB[2]);addr++;
+    EEPROM.get(addr,unionFB.datoB[3]);addr++;
+    efectochorus[i]=unionFB.datoF;    
+
+    cargarsonido[i]=true;
+    
   }
-  */
 
-  //Serial.print("Size : ");
-  //Serial.println(tamsonido[numsonido]);
-
-  sonidorelleno[numsonido]=true;
-
-  frecuenciawav[numsonido]=523.25;
-  frecuenciasonido[numsonido]=130.81;
-  loopsonido[numsonido]=0;
-  possonido[numsonido]=0;
+  EEPROM.get(addr,unionIB.datoB[0]);addr++;
+  EEPROM.get(addr,unionIB.datoB[1]);addr++;
+  colordefondo=unionIB.datoI;
+    
+  EEPROM.get(addr,unionFB.datoB[0]);addr++;
+  EEPROM.get(addr,unionFB.datoB[1]);addr++;
+  EEPROM.get(addr,unionFB.datoB[2]);addr++;
+  EEPROM.get(addr,unionFB.datoB[3]);addr++;
+  volumen=unionFB.datoF;    
   
-  file2.close();      
+  EEPROM.end();    
   
-  /*
-  int maximo=-100000;
-  for(int i=0;i<tamsonido-1;i++){
-    int d=sonido[i+1]-sonido[i];
-    if(d>maximo){ maximo=d;}    
-    if(d>255){ Serial.println(d); delay(10); }       
+  
+}
+    
+void guarda(){
+  yield();
+  EEPROM.begin(512);    
+  int addr=eeprominicio;
+
+  for(int i=0;i<4;i++){
+    
+    unionIB.datoI=posarchivos[i];
+    EEPROM.put(addr,unionIB.datoB[0]);addr++;
+    EEPROM.put(addr,unionIB.datoB[1]);addr++;
+
+    unionIB.datoI=color[i];
+    EEPROM.put(addr,unionIB.datoB[0]);addr++;
+    EEPROM.put(addr,unionIB.datoB[1]);addr++;
+
+    unionFB.datoF=frecuenciawav[i];  
+    EEPROM.put(addr,unionFB.datoB[0]);addr++;
+    EEPROM.put(addr,unionFB.datoB[1]);addr++;
+    EEPROM.put(addr,unionFB.datoB[2]);addr++;
+    EEPROM.put(addr,unionFB.datoB[3]);addr++;
+
+    byte nivel=0;
+    if(nivelteclas[i]){ nivel=1; }
+    EEPROM.put(addr,nivel);addr++;
+
+    unionFB.datoF=efectochorus[i];  
+    EEPROM.put(addr,unionFB.datoB[0]);addr++;
+    EEPROM.put(addr,unionFB.datoB[1]);addr++;
+    EEPROM.put(addr,unionFB.datoB[2]);addr++;
+    EEPROM.put(addr,unionFB.datoB[3]);addr++;
+
+    
   }
-  */
-  
-  //Serial.print("Maximo : ");
-  //Serial.println(maximo);
 
+  unionIB.datoI=colordefondo;
+  EEPROM.put(addr,unionIB.datoB[0]);addr++;
+  EEPROM.put(addr,unionIB.datoB[1]);addr++;
+
+  unionFB.datoF=volumen;  
+  EEPROM.put(addr,unionFB.datoB[0]);addr++;
+  EEPROM.put(addr,unionFB.datoB[1]);addr++;
+  EEPROM.put(addr,unionFB.datoB[2]);addr++;
+  EEPROM.put(addr,unionFB.datoB[3]);addr++;
+
+  EEPROM.end();    
   
 }
 
 
+
+void cargasonido(int numsonido){
+
+  if(posarchivos[numsonido]==0){ 
+    
+      archivocargado[numsonido]="None";   
+      if(sonidocanal[numsonido]!=-1){  sonidocargado[sonidocanal[numsonido]]=false; }  
+     // if(sonidocanal[numsonido]!=-1){ Serial.print("SonidoCanal ");Serial.print(sonidocanal[numsonido]);Serial.println(" Libre !!!"); }
+      sonidocanal[numsonido]=-1;
+
+      
+  }else if(posarchivos[numsonido]==1){ 
+    
+      archivocargado[numsonido]="PIANO";       
+      frecuenciawav[numsonido]=523.25;
+
+      if(sonidocanal[numsonido]!=-1){  sonidocargado[sonidocanal[numsonido]]=false; }  
+    //  if(sonidocanal[numsonido]!=-1){ Serial.print("SonidoCanal ");Serial.print(sonidocanal[numsonido]);Serial.println(" Libre !!!"); }
+      sonidocanal[numsonido]=-1;
+
+      
+      for(int i=0;i<39;i++){   possonido[numsonido][i]=pianotam;  }
+      
+  }else {  //Se lee tarjeta SD y se mete en sonido[][]
+      
+    archivocargado[numsonido]=archivos[posarchivos[numsonido]-2];    
+    
+    File file2 = SD.open(archivocargado[numsonido],"r");  
+  
+    if (!file2) { Serial.println("Failed to open file for reading"); return; }  
+  
+    byte header[44];file2.read(header,44);
+
+    if(sonidocanal[numsonido]==-1){      
+    
+      if(!sonidocargado[0]){ sonidocanal[numsonido]=0;sonidocargado[0]=true; }
+      else if(!sonidocargado[1]){ sonidocanal[numsonido]=1;sonidocargado[1]=true; }
+      else if(!sonidocargado[2]){ sonidocanal[numsonido]=2;sonidocargado[2]=true; }
+      else{ 
+        archivocargado[numsonido]="None";   
+        if(sonidocanal[numsonido]!=-1){  sonidocargado[sonidocanal[numsonido]]=false; }  
+        sonidocanal[numsonido]=-1;
+        posarchivos[numsonido]=0;
+        menupantalla();
+        
+        return; 
+      }
+
+    }
+    
+   // Serial.print("SonidoCanal ");Serial.print(sonidocanal[numsonido]);Serial.println(" Ocupado !!!");
+      
+    tamsonido[numsonido]=file2.read(sonido[sonidocanal[numsonido]],25000);
+
+    for(int i=0;i<39;i++){
+        possonido[numsonido][i]=tamsonido[numsonido];
+    }
+             
+    frecuenciawav[numsonido]=523.25;
+    
+    file2.close();          
+
+  }
+  
+  menupantalla();
+  
+}
+
+void teclasluces(int i,boolean estado){
+    if(teclas[i][0]){  led(i,0,estado);  }
+    if(teclas[i][2]){  led(i,1,estado);  }
+    if(teclas[i][4]){  led(i,2,estado);  }
+    if(teclas[i][5]){  led(i,3,estado);  }
+    if(teclas[i][7]){  led(i,4,estado);  }
+    if(teclas[i][9]){  led(i,5,estado);  }
+    if(teclas[i][11]){ led(i,6,estado);  }
+    
+    if(teclas[i][12]){  led(i,7,estado);  }
+    if(teclas[i][14]){  led(i,8,estado);  }
+    if(teclas[i][16]){  led(i,9,estado);  }
+    if(teclas[i][17]){  led(i,10,estado);  }
+    if(teclas[i][19]){  led(i,11,estado);  }
+    if(teclas[i][21]){  led(i,12,estado);  }
+    if(teclas[i][23]){  led(i,13,estado);  }
+    
+    if(teclas[i][24]){  led(i,14,estado);  }
+    if(teclas[i][26]){  led(i,15,estado);  }
+    if(teclas[i][28]){  led(i,16,estado);  }
+    if(teclas[i][29]){  led(i,17,estado);  }
+    if(teclas[i][31]){  led(i,18,estado);  }
+    if(teclas[i][33]){  led(i,19,estado);  }
+    if(teclas[i][35]){  led(i,20,estado);  }
+    
+    if(teclas[i][36]){  led(i,21,estado);  }
+    if(teclas[i][38]){  led(i,22,estado);  }
+  
+}
+
 void luces(){
-  
-  if(teclas[0]){  led(0,true);  }else {  led(0,false);  }
-  if(teclas[2]){  led(1,true);  }else {  led(1,false);  }
-  if(teclas[4]){  led(2,true);  }else {  led(2,false);  }
-  if(teclas[5]){  led(3,true);  }else {  led(3,false);  }
-  if(teclas[7]){  led(4,true);  }else {  led(4,false);  }
-  if(teclas[9]){  led(5,true);  }else {  led(5,false);  }
-  if(teclas[11]){ led(6,true);  }else {  led(6,false);  }
-  
-  if(teclas[12]){  led(7,true);  }else {  led(7,false);  }
-  if(teclas[14]){  led(8,true);  }else {  led(8,false);  }
-  if(teclas[16]){  led(9,true);  }else {  led(9,false);  }
-  if(teclas[17]){  led(10,true);  }else {  led(10,false);  }
-  if(teclas[19]){  led(11,true);  }else {  led(11,false);  }
-  if(teclas[21]){  led(12,true);  }else {  led(12,false);  }
-  if(teclas[23]){  led(13,true);  }else {  led(13,false);  }
-  
-  if(teclas[24]){  led(14,true);  }else {  led(14,false);  }
-  if(teclas[26]){  led(15,true);  }else {  led(15,false);  }
-  if(teclas[28]){  led(16,true);  }else {  led(16,false);  }
-  if(teclas[29]){  led(17,true);  }else {  led(17,false);  }
-  if(teclas[31]){  led(18,true);  }else {  led(18,false);  }
-  if(teclas[33]){  led(19,true);  }else {  led(19,false);  }
-  if(teclas[35]){  led(20,true);  }else {  led(20,false);  }
-  
-  if(teclas[36]){  led(21,true);  }else {  led(21,false);  }
-  if(teclas[38]){  led(22,true);  }else {  led(22,false);  }
+
+  for(int i=0;i<23;i++){ ledfondo(i); }
+
+  for(int i=0;i<4;i++){  teclasluces(i,true);}
+  teclasluces(canalseleccionado,true);
   
   pixels.show();
   
 }
 
-void led(int i,boolean encendido){
+void ledfondo(int i){
+
+    byte r,g,b;
+    
+    if(colordefondo==0) { r=0;g=0;b=0;}
+    else if(colordefondo==1){ r=0;g=0;b=200;}
+    else if(colordefondo==2){ r=200;g=0;b=0;}
+    else if(colordefondo==3){ r=0;g=200;b=0;}
+    else if(colordefondo==4){ r=200;g=100;b=50;}
+    else if(colordefondo==5){ r=200;g=20;b=20;}
+    else if(colordefondo==6){ r=50;g=50;b=50;}  
+    else if(colordefondo==7){          
+
+        if(i==0){ r=0;g=0;b=200;}
+        else if(i==1){ r=200;g=0;b=0;}
+        else if(i==2){ r=0;g=200;b=0;}
+        else if(i==3){ r=200;g=100;b=50;}
+        else if(i==4){ r=200;g=20;b=20;}
+        else if(i==5){ r=0;g=0;b=200;}
+        else if(i==6){ r=200;g=0;b=0;}
+        else if(i==7){ r=0;g=200;b=0;}
+        else if(i==8){ r=200;g=100;b=50;}
+        else if(i==9){ r=200;g=20;b=20;}
+        else if(i==10){ r=0;g=0;b=200;}
+        else if(i==11){ r=200;g=0;b=0;}
+        else if(i==12){ r=0;g=200;b=0;}
+        else if(i==13){ r=200;g=100;b=50;}
+        else if(i==14){ r=200;g=20;b=20;}
+        else if(i==15){ r=0;g=0;b=200;}
+        else if(i==16){ r=200;g=0;b=0;}
+        else if(i==17){ r=0;g=200;b=0;}
+        else if(i==18){ r=200;g=100;b=50;}
+        else if(i==19){ r=200;g=20;b=20;}
+        else if(i==20){ r=0;g=0;b=200;}
+        else if(i==21){ r=200;g=0;b=0;}
+        else if(i==22){ r=0;g=200;b=0;}
+      
+  
+    }
+    
+    pixels.setPixelColor(i,pixels.Color(r,g,b));  
+    pixels.setPixelColor(45-i,pixels.Color(r,g,b));  
+    pixels.setPixelColor(i+46,pixels.Color(r,g,b));  
+    
+}
+
+void led(int j,int i,boolean encendido){
 
     byte r,g,b;
     if(!encendido){ r=0;g=0;b=0;}
     else{
-        if(color==6){
-          int c=random(0,5);
-          definecolor(c);                    
+        
+        if(color[j]==6){
+            if(i==0){ r=0;g=0;b=200;}
+            else if(i==1){ r=200;g=0;b=0;}
+            else if(i==2){ r=0;g=200;b=0;}
+            else if(i==3){ r=200;g=100;b=50;}
+            else if(i==4){ r=200;g=20;b=20;}
+            else if(i==5){ r=0;g=0;b=200;}
+            else if(i==6){ r=200;g=0;b=0;}
+            else if(i==7){ r=0;g=200;b=0;}
+            else if(i==8){ r=200;g=100;b=50;}
+            else if(i==9){ r=200;g=20;b=20;}
+            else if(i==10){ r=0;g=0;b=200;}
+            else if(i==11){ r=200;g=0;b=0;}
+            else if(i==12){ r=0;g=200;b=0;}
+            else if(i==13){ r=200;g=100;b=50;}
+            else if(i==14){ r=200;g=20;b=20;}
+            else if(i==15){ r=0;g=0;b=200;}
+            else if(i==16){ r=200;g=0;b=0;}
+            else if(i==17){ r=0;g=200;b=0;}
+            else if(i==18){ r=200;g=100;b=50;}
+            else if(i==19){ r=200;g=20;b=20;}
+            else if(i==20){ r=0;g=0;b=200;}
+            else if(i==21){ r=200;g=0;b=0;}
+            else if(i==22){ r=0;g=200;b=0;}                 
+        }else{
+            r=rcolor[j];
+            g=gcolor[j];
+            b=bcolor[j];                                    
         }
-        r=rcolor;
-        g=gcolor;
-        b=bcolor;                                    
     }
     
     pixels.setPixelColor(i,pixels.Color(r,g,b));  
@@ -231,65 +446,33 @@ void led(int i,boolean encendido){
     
 }
   
-  
-void lectura(int puerto,int pos){
 
-  if((millis()-tiempobotones[pos])<100){ botones[pos]=false; return; }      
 
-  int valor=analogRead(puerto);
+void pintaplaying(){
 
-  //Serial.println(valor);
-
-  if(valor>limitepulsacion){ 
-
-    delayMicroseconds(100);
-    valor=analogRead(puerto);
-    
-    if(valor>limitepulsacion){ 
-
-      botones[pos]=true;
-      pulsado=true;    
-      valorbotones[pos]=valor; 
-
-      tiempobotones[pos]=instante; 
-      
-      /*
-      Serial.print("Boton ");
-      Serial.print(pos);      
-      Serial.print(" : ");
-      Serial.println(valor);
-      */
-    }else{     
-      botones[pos]=false;            
-    }
-    
-  }else{     
-    botones[pos]=false;         
-  }
-  
-    
-}
-
-void revisaloop(){
-  int instanteloop=millis();
-  
-  for(int i=0;i<3;i++){
-    if((sonidorelleno[i])&&(loopsonido[i]!=0)){  
-      if((instanteloop-looptiempo[i])>loopsonido[i]){
-        //Serial.println("Se pulsa boton por loop");
-        possonido[i]=0;    
-        looptiempo[i]=instanteloop;    
-      }         
-    }    
-  } 
-  
+  display.clearDisplay();
+  String texto="Playing ";
+  texto+=(canalseleccionado+1);
+  drawCentreString(texto,64,12,2); 
+  texto="Ret:";texto+=musicadelay[canalseleccionado];texto+="ms";
+  drawCentreString(texto,64,42,2); 
+  display.display();
+  menuplaying=true;
 }
 
 void recogeteclas(){
 
-  byte numeros[39];
+  byte numeros[4][39];
 
-  for(int i=0;i<39;i++){ numeros[i]=0; }
+
+  //////////////////////////////////////////////////////////////////
+  //////Se Recogen los valores que nos envian los ESP32 esclavos.///
+  //////////////////////////////////////////////////////////////////
+  for(int j=0;j<4;j++){
+    for(int i=0;i<39;i++){ 
+      numeros[j][i]=0; 
+    }
+  }
   
   //Serial.println("Miramos teclas");
   
@@ -300,7 +483,7 @@ void recogeteclas(){
   int instante=millis();
   while(contador<15){
     if(Wire.available()>0){
-      numeros[contador] = Wire.read();      
+      numeros[canalseleccionado][contador] = Wire.read();      
       contador++;
     } 
     if((millis()-instante)>1000) { return; }   
@@ -311,7 +494,7 @@ void recogeteclas(){
   instante=millis();
   while(contador<28){
     if(Wire.available()>0){
-      numeros[contador] = Wire.read();      
+      numeros[canalseleccionado][contador] = Wire.read();      
       contador++;
     } 
     if((millis()-instante)>1000) { return; }   
@@ -322,133 +505,153 @@ void recogeteclas(){
   instante=millis();
   while(contador<39){
     if(Wire.available()>0){
-      numeros[contador] = Wire.read();      
+      numeros[canalseleccionado][contador] = Wire.read();      
       contador++;
     } 
     if((millis()-instante)>1000) { return; }   
   }
   delay(1);
 
+  /////////////////////////////////
 
-   /*
-  //Comprobamos si play y se tocan las notas solas
- 
-  for(int i=0;i<39;i++){
-      if(notasenteclas[i]!=-1){
-        if((millis()-tiempomusica)>musicatiempofin[notasenteclas[i]]){
-            numeros[i]=0;  
-            notasenteclas[i]=-1;
-            String texto="Tecla ";
-            texto+=i;
-            texto+=" ON ";
-            Serial.println(texto);
 
-            ponerenpantalla(texto);
-          
-            if(musicaposicion>=musicatam){ 
-              tiempomusica=millis();
-              musicaposicion=0;
-            } 
-         
-        }else{
-            numeros[i]=130;      
-        }
-      }    
-  }
 
-  if(musicaposicion<musicatam){     
+  for(int j=0;j<4;j++){
   
-    while((millis()-tiempomusica)>musicatiempoinicio[musicaposicion]){
-        int tecla=musicanotas[musicaposicion];
-
-        String texto="Tecla ";
-        texto+=tecla;
-        texto+=" ON ";
-        Serial.println(texto);
-
-        ponerenpantalla(texto);
+      //Comprobamos si play y se tocan las notas solas
+      if(playing[j]){
+    
+         ///Dentro del las teclas pulsadas se comprueba si es el momento de soltarla 
         
-        valorteclas[tecla]=100;
-        numeros[tecla]=130;  
-        notasenteclas[tecla]=musicaposicion;
-        musicaposicion++;
-        if(musicaposicion>=musicatam){ break; }     
-    }
-
-  }
-  
-*/
-   //int rampa=((int)valorteclas[0])-((int)numeros[0]);
-   //Serial.println(rampa);
+        for(int i=0;i<39;i++){
+            if(notasenteclas[j][i]!=-1){
+              if((millis()-tiempomusica[j])>(musicatiempofin[j][notasenteclas[j][i]]+musicadelay[j])){
+                  numeros[j][i]=0;                           
+                  notasenteclas[j][i]=-1;
+                  //String texto="Tecla ";texto+=i;texto+=" OFF";Serial.println(texto);
+                  //ponerenpantalla(texto);              
+               
+              }else{
+                  numeros[j][i]=130;      
+              }
+            }    
+        }
     
-  /*
-  //Serial.print("Esclavo 1 :");
-  for(byte i=0;i<15;i++){
-      //Serial.print(numeros[i]);
-      //Serial.print(",");      
-      delay(1);
-  }
-  //Serial.println("");
-
-  //Serial.print("Esclavo 2 :");
-  for(byte i=15;i<30;i++){
-      //Serial.print(numeros[i]);
-      //Serial.print(",");      
-      delay(1);
-  }
-  //Serial.println("");
-
-  //Serial.print("Esclavo 3 :");
-  for(byte i=30;i<39;i++){
-      //Serial.print(numeros[i]);
-      //Serial.print(",");      
-      delay(1);
-  }
-  //Serial.println("");
-
-  */
-  
-  float f=130.81;
     
-  for(byte i=0;i<39;i++){
-
-    if(!teclas[i]){  //Tecla no pulsada   
-      if((millis()-tiempoteclas[i])>50){         
-        //if(numeros[i]>80){
-        if(numeros[i]>120){
-
-          int rampa=(((int)valorteclas[i])-((int)numeros[i]))/2;
-          if(rampa>10){ rampa=10; }
-          volumenteclas[i]=0.1*rampa;          
+        //Se comprueba si es el momento de pulsar las teclas almacenadas
+        
+        if(musicaposicion[j]<musicatam[j]){     
+    
+          if((millis()-tiempomusica[j])>(musicatiempoinicio[j][musicaposicion[j]]+musicadelay[j])){
+            
+              int tecla=musicanotas[j][musicaposicion[j]];
+                
+              //String texto="Tecla ";texto+=tecla;texto+=" ON ";Serial.println(texto);
+              //ponerenpantalla(texto);
+              
+              valorteclas[j][tecla]=100;
+              numeros[j][tecla]=130;  
+              notasenteclas[j][tecla]=musicaposicion[j];
+              musicaposicion[j]++;
+                
+          }
+      
+        }
+    
+        boolean termino=true;
+        for(int i=0;i<39;i++){  if(notasenteclas[j][i]!=-1){ termino=false; } }
+    
+        if(termino){
+            if(musicaposicion[j]>=musicatam[j]){ 
+              tiempomusica[j]=millis();
+              musicaposicion[j]=0;
+            }       
+        }
           
-          frecuenciasonido[i]=f;
-          possonido[i]=0; 
-          teclas[i]=true; 
-          tiempoteclas[i]=millis();
-        }  
-      }          
-    }else{  //Tecla pulsada
-      if((millis()-tiempoteclas[i])>50){
-        //if(numeros[i]<180){
-        if(numeros[i]<120){
-          possonido[i]=tamsonido[botonseleccionado];          
-          teclas[i]=false;  
-          tiempoteclas[i]=millis();      
-        }  
-      }    
-    }
-       
-    f=f*1.06;    
+      
+      }
     
-  }
+      
+        
+      float f=130.81;
+        
+      for(byte i=0;i<39;i++){
+    
+        if(!teclas[j][i]){  //Tecla no pulsada   
+          if((millis()-tiempoteclas[j][i])>50){         
+            
+            if(numeros[j][i]>120){
+    
+              if((grabando)&&(j==canalseleccionado)){
+                  if(musicatam[canalseleccionado]==0){ tiempoinicio=millis();musicadelay[canalseleccionado]=0;}
+                  notasenteclas[canalseleccionado][i]=musicatam[canalseleccionado];      
+                  musicanotas[canalseleccionado][musicatam[canalseleccionado]]=i;
+                  int tiempon=millis()-tiempoinicio;      
+                  musicatiempoinicio[canalseleccionado][musicatam[canalseleccionado]]=tiempon;                
+                  musicatam[canalseleccionado]++; 
+              }
+          
+              int rampa=(((int)valorteclas[j][i])-((int)numeros[j][i]))/2;
+              if(rampa>10){ rampa=10; }
+              volumenteclas[j][i]=0.1*rampa;          
+              
+              frecuenciasonido[j][i]=f;
+              possonido[j][i]=0.0; 
+    
+              if(efectochorus[j]>0.05){
+                if(i<38){frecuenciasonido[j][i+1]=(f+efectochorus[j]);possonido[j][i+1]=0.0; }
+                if(i>0){frecuenciasonido[j][i-1]=(f-efectochorus[j]);possonido[j][i-1]=0.0; }                
+              }
+                        
+              teclas[j][i]=true; 
+              tiempoteclas[j][i]=millis();
+            }  
+          }          
+        }else{  //Tecla no pulsada
+          if((millis()-tiempoteclas[j][i])>50){
+            
+            if(numeros[j][i]<120){
+              if(posarchivos[j]==1){possonido[j][i]=pianotam; }
+              else{ possonido[j][i]=tamsonido[j]; }
 
-  for(byte i=0;i<39;i++){ valorteclas[i]=numeros[i]; }
+              if(efectochorus[j]>0.05){
+                if(i<38){
+                  if(posarchivos[j]==1){possonido[j][i+1]=pianotam; }
+                  else{ possonido[j][i+1]=tamsonido[j]; }
+                }
+                if(i>0){
+                  if(posarchivos[j]==1){possonido[j][i-1]=pianotam; }
+                  else{ possonido[j][i-1]=tamsonido[j]; }
+                }                
+              }
+              
+              
+              teclas[j][i]=false;  
+              
+              if((grabando)&&(j==canalseleccionado)){                         
+                  int tiempon=millis()-tiempoinicio;      
+                  musicatiempofin[j][notasenteclas[j][i]]=tiempon;                                          
+              }
+              
+              tiempoteclas[j][i]=millis();      
+            }  
+          }    
+        }
+           
+        f=f*1.06;    
+        
+      }
+    
+      for(byte i=0;i<39;i++){ valorteclas[j][i]=numeros[j][i]; }
+
+  
+  }
   
 }
 
 void actualizacolor(){
 
-  definecolor(color);
+  definecolor(canalseleccionado,color[canalseleccionado]);
 
   menupantalla();
 
@@ -462,7 +665,7 @@ boolean pulsacionbotones(){
   //Serial.println(valor);
   if(valor<255){ 
     menu++;
-    if(menu>2){ menu=0;}
+    if(menu>8){ menu=0;}
     menupantalla();
     
   }
@@ -470,53 +673,173 @@ boolean pulsacionbotones(){
   valor=analogRead(39); //Boton Izquierda
   if(valor<255){ 
     menu--;
-    if(menu<0){ menu=2;}
+    if(menu<0){ menu=8;}
     menupantalla();    
   }
 
   
   valor=analogRead(34);if(valor<255){  //Boton Abajo
-
-     if(menu==0){
-        posarchivos--;
-        if(posarchivos<0){ posarchivos=numarchivos-1; }
-        cargarsonido[botonseleccionado]=true;
-     }else if(menu==1){
-        color--;
-        if(color<0){ color=6; }
-        actualizacolor();
-     }else if(menu==2){
-        
-        frecuenciawav[botonseleccionado]/=1.06;
-        menupantalla();  
+     if(menuplaying){
+        musicadelay[canalseleccionado]-=10;
+        if(musicadelay[canalseleccionado]<0){musicadelay[canalseleccionado]=0;}
+        pintaplaying();
+     }else{
+      
+       if(menu==0){
+          posarchivos[canalseleccionado]--;
+          if(posarchivos[canalseleccionado]<0){ posarchivos[canalseleccionado]=numarchivos+1; }
+          cargarsonido[canalseleccionado]=true;
+          delay(200);
+       }else if(menu==1){
+          color[canalseleccionado]--;
+          if(color[canalseleccionado]<0){ color[canalseleccionado]=6; }
+          actualizacolor();
+       }else if(menu==2){
+          colordefondo--;
+          if(colordefondo<0){ colordefondo=7; }          
+          menupantalla();                    
+       }else if(menu==3){        
+          frecuenciawav[canalseleccionado]*=1.06;
+          menupantalla();  
+       }else if(menu==4){        
+          volumen-=0.05;
+          if(volumen<0.05){ volumen=0.05;}
+          menupantalla();  
+       }else if(menu==5){        
+          nivelteclas[canalseleccionado]=!nivelteclas[canalseleccionado];
+          menupantalla();  
+       }else if(menu==6){        
+          efectochorus[canalseleccionado]-=0.1;
+          if(efectochorus[canalseleccionado]<=0.0){ efectochorus[canalseleccionado]=0.0;}
+          menupantalla();  
+       }else if(menu==7){                  
+          guarda();
+          menupantalla();  
+       }else if(menu==8){        
+          carga();
+          menu=0;
+          canalseleccionado=0;
+          menupantalla();  
+       }       
      }
+     
   }
   
   valor=analogRead(35);if(valor<255){ //Boton Arriba
-     
-     if(menu==0){
-        posarchivos++;
-        if(posarchivos>=numarchivos){ posarchivos=0; }
-        cargarsonido[botonseleccionado]=true;        
-     }else if(menu==1){
-        color++;
-        if(color>6){ color=0; }
-        actualizacolor();
-     }else if(menu==2){
-        frecuenciawav[botonseleccionado]*=1.06;
-        menupantalla();  
+
+     if(menuplaying){
+        musicadelay[canalseleccionado]+=10;
+        if(musicadelay[canalseleccionado]>5000){musicadelay[canalseleccionado]=5000;}
+        pintaplaying();
+     }else{
+       if(menu==0){
+          posarchivos[canalseleccionado]++;
+          if(posarchivos[canalseleccionado]>=numarchivos+2){ posarchivos[canalseleccionado]=0; }
+          cargarsonido[canalseleccionado]=true;  
+          delay(200);      
+       }else if(menu==1){
+          color[canalseleccionado]++;
+          if(color[canalseleccionado]>6){ color[canalseleccionado]=0; }
+          actualizacolor();
+       }else if(menu==2){
+          colordefondo++;
+          if(colordefondo>7){ colordefondo=0; }   
+          menupantalla();          
+       }else if(menu==3){
+          frecuenciawav[canalseleccionado]/=1.06;
+          menupantalla();  
+       }else if(menu==4){        
+          volumen+=0.05;
+          if(volumen>1.0){ volumen=1.0;}
+          menupantalla();  
+       }else if(menu==5){        
+          nivelteclas[canalseleccionado]=!nivelteclas[canalseleccionado];
+          menupantalla();  
+       }else if(menu==6){        
+          efectochorus[canalseleccionado]+=0.1;
+          if(efectochorus[canalseleccionado]>10.0){ efectochorus[canalseleccionado]=10.0;}
+          menupantalla();  
+       }else if(menu==7){        
+          guarda();
+          menupantalla();  
+       }else if(menu==8){        
+          carga();
+          menu=0;
+          canalseleccionado=0;
+          menupantalla();  
+       }
+       
      }
-      
   }
   
   valor=analogRead(32);if(valor<255){ ponerenpantalla("Boton 5"); }
   
     
     
-  if(digitalRead(33)==LOW){ ponerenpantalla("Boton 6"); }
-  if(digitalRead(13)==LOW){ ponerenpantalla("Boton 7"); }
-  if(digitalRead(15)==LOW){ ponerenpantalla("Boton 8"); }
-  if(digitalRead(4)==LOW){ ponerenpantalla("Boton 9"); }
+  if(digitalRead(33)==LOW){ //Chanel --
+      canalseleccionado--;
+      if(canalseleccionado<0){ canalseleccionado=3; }
+      menu=0;
+      menupantalla();
+  }
+  
+  if(digitalRead(13)==LOW){ //Chanel ++
+      canalseleccionado++;
+      if(canalseleccionado>=4){ canalseleccionado=0; }
+      menu=0;
+      menupantalla();
+  }
+  
+  if(digitalRead(15)==LOW){ //Play y Stop Notas guardadas
+      if(!grabando){
+        delay(500);
+        playing[canalseleccionado]=!playing[canalseleccionado];
+        if(playing[canalseleccionado]){
+
+            pintaplaying();
+            
+            tiempomusica[canalseleccionado]=millis();
+            musicaposicion[canalseleccionado]=0;
+            for(int i=0;i<39;i++){ notasenteclas[canalseleccionado][i]=-1; }
+            
+            if(musicatam[canalseleccionado]==0){
+                playing[canalseleccionado]=false;
+                menupantalla();  
+            }
+        }else{
+            menuplaying=false;
+            menupantalla();  
+        }
+      }
+      
+  }
+
+  
+  if(digitalRead(4)==LOW){  ///Boton de Grabacion
+      if(!playing[canalseleccionado]){
+        if(!grabando){          
+            display.clearDisplay();
+            String texto="Record ";
+            texto+=(canalseleccionado+1);
+            drawCentreString(texto,64,32,2); 
+            display.display();           
+            musicatam[canalseleccionado]=0;
+            /*
+            for(int i=0;i<1000;i++){
+                  musicatiempoinicio[i]=0;
+                  musicatiempofin[i]=0;
+            }  
+            */                
+            grabando=true;
+            
+        }else{          
+            grabando=false;               
+            menupantalla(); 
+        }
+        delay(500); 
+      }
+    
+  }
       
 
   return pulsado;
@@ -524,73 +847,8 @@ boolean pulsacionbotones(){
 }
 
 
-void control(){
 
-  if(botones[9]) { play=!play; delay(300);}
-
-  if(botones[13]) { ///VOLUMEN +  
-        volumen+=0.05;
-        if(volumen>1.0){ volumen=1.0;}
-  }else if(botones[12]) { ///VOLUMEN - 
-        volumen-=0.05;
-        if(volumen<0.05){ volumen=0.05;}
-  }
-
-  if(!play) { /// Se configuran los botones y las parametros del sonido
-
-    if(botones[0]) {       botonseleccionado=0;possonido[0]=0;   }
-    else if(botones[1]) {  botonseleccionado=1;possonido[1]=0;   }
-    else if(botones[2]) {  botonseleccionado=2;possonido[2]=0;   }    
-    else if(botones[3]) {  botonseleccionado=3;possonido[3]=0;  }  
-
-    
-    if(botones[11]) { 
-      cargarsonido[botonseleccionado]=true; 
-     // while(cargarsonido[botonseleccionado]){ delay(1); }      
-    }    
-
-    if(botones[10]) { ///PITCH +  de botonseleccionado
-        frecuenciasonido[botonseleccionado]+=2.0;
-        possonido[botonseleccionado]=0;
-    }else if(botones[8]) { ///PITCH -  de botonseleccionado
-        frecuenciasonido[botonseleccionado]-=2.0;
-        possonido[botonseleccionado]=0;
-    }  
-
-    if(botones[5]) { ///LOOP +  de botonseleccionado
-
-        looptiempo[botonseleccionado]=millis();
-       
-        if(loopsonido[botonseleccionado]==0){ loopsonido[botonseleccionado]=500; }
-        else{ 
-            loopsonido[botonseleccionado]-=50; 
-            if(loopsonido[botonseleccionado]<100){ loopsonido[botonseleccionado]=0;}
-        }
-        
-    }else if(botones[7]) { ///LOOP -  de botonseleccionado
-      
-        looptiempo[botonseleccionado]=millis();
-      
-        if(loopsonido[botonseleccionado]==0){ loopsonido[botonseleccionado]=500; }
-        else{ 
-            loopsonido[botonseleccionado]+=50; 
-            if(loopsonido[botonseleccionado]>3000){ loopsonido[botonseleccionado]=0;}
-        }
-    }  
-
-    
-  }else{
-
-    if(botones[0]) {  possonido[0]=0;  }
-    if(botones[1]) {  possonido[1]=0;  }
-    if(botones[2]) {  possonido[2]=0;  }    
-    if(botones[3]) {  possonido[3]=0;  }  
-
-  }
-  
-}
-
-void printDirectory() {
+void leeficheros() {
   
   int sigue = 1;
   int i = 0;
@@ -614,20 +872,6 @@ void printDirectory() {
    
 }
 
-void compruebaplayer(){
-
-  //Serial.println("Se comprueba player");
-  
-  for(int i=0;i<3;i++){
-     if((sonidorelleno[i])&&(possonido[i]==0)) {       
-        reproduce();         
-     }    
-  }
-
-  if(ultimovalor!=0){ reproduce();}  
-  
-}
-
 
 void silencio(){
 
@@ -640,10 +884,8 @@ void silencio(){
 
 
 
-
-
 void actualizasonidos(){  
-  for(int i=0;i<3;i++){
+  for(int i=0;i<4;i++){
       if(cargarsonido[i]){ 
         cargasonido(i);         
         cargarsonido[i]=false;
@@ -651,7 +893,6 @@ void actualizasonidos(){
       }      
   }  
 }
-
 
 void reproduce(){
 
@@ -668,39 +909,48 @@ void reproduce(){
 
     int32_t valormuestra=0;
     
-    for(int i=0;i<3;i++){
+    for(int i=0;i<4;i++){
       
-      if(sonidorelleno[i]){  
+      if(posarchivos[i]!=0){  
 
         for(int jj=0;jj<39;jj++){
-                
-          if(possonido[jj]<(tamsonido[i]-50)){
+
+          float tam=tamsonido[i]-50;
+          if(posarchivos[i]==1){ tam=pianotam; }
+            
+          if(possonido[i][jj]<tam){
   
             consonido=true;
             
-            float vel=frecuenciasonido[jj]/frecuenciawav[i];    
+            float vel=frecuenciasonido[i][jj]/frecuenciawav[i];    
             vel=vel*2;
     
-            int ii=(int)possonido[jj];
+            int ii=(int)possonido[i][jj];
             if((ii%2)!=0){ ii++; }
             
-            int16_t dato1;      
-            dato1 = sonido[i][ii+1]<<8 | sonido[i][ii];
+            int16_t dato1;   
+            if(posarchivos[i]==1){ dato1 = piano[ii+1]<<8 | piano[ii]; }
+            else { dato1 = sonido[sonidocanal[i]][ii+1]<<8 | sonido[i][ii]; }
 
             int16_t dato2;      
-            dato2 = sonido[i][ii+3]<<8 | sonido[i][ii+2];
+            if(posarchivos[i]==1){ dato2 = piano[ii+3]<<8 | piano[ii+2]; }
+            else { dato2 = sonido[sonidocanal[i]][ii+3]<<8 | sonido[i][ii+2]; }
 
-            float dat1 = ((float)dato1)*volumenteclas[jj];
-            float dat2 = ((float)dato2)*volumenteclas[jj];
+            float dat1 = (float)dato1;
+            float dat2 = (float)dato2;
 
-            float p=possonido[jj]-ii;
+            float p=possonido[i][jj]-ii;
 
             float dat=(dat1*(1-p))+(dat2*p);
+            
+            if(!nivelteclas[i]){ volumenteclas[i][jj]=0.5;}
+            
+            dat=dat*volumenteclas[i][jj];
   
             valormuestra+=(int32_t)dat;  
             nsonidos++;          
                        
-            possonido[jj]+=vel;
+            possonido[i][jj]+=vel;
             
           }
           
@@ -714,6 +964,8 @@ void reproduce(){
     int32_t dato2=valormuestra;
 
     if(nsonidos!=0){ dato2=dato2/nsonidos; }
+
+    dato2=valormuestra*volumen;
     
     if(!consonido){
       
@@ -752,8 +1004,8 @@ void reproduce(){
       yield();        
     }
 
-    if((cargarsonido[0])||(cargarsonido[1])||(cargarsonido[2])){ 
-       Serial.println("Se sale de reproduce para cargar sonido");
+    if((cargarsonido[0])||(cargarsonido[1])||(cargarsonido[2])||(cargarsonido[3])){ 
+       //Serial.println("Se sale de reproduce para cargar sonido");
        break; 
     }
     
@@ -761,17 +1013,6 @@ void reproduce(){
 
  // Serial.println("Sale de reproducir");
   
-}
-
-
-void metenotas(int nota){
-  
-      notasenteclas[musicatam]=-1;      
-      musicanotas[musicatam]=nota;
-      musicatiempoinicio[musicatam]=tiempon;  
-      musicatiempofin[musicatam]=tiempon+500;
-      tiempon+=500;      
-      musicatam++;  
 }
 
 
@@ -789,7 +1030,7 @@ String recortatexto(String texto){
   
 }
 
-void drawCentreString(String texto, int x, int y)
+void drawCentreString(String texto, int x, int y,int tam)
 {
     int str_len = texto.length() + 1; 
     char buf[str_len];
@@ -798,7 +1039,7 @@ void drawCentreString(String texto, int x, int y)
     int16_t x1, y1;
     uint16_t w, h;
 
-    display.setTextSize(1);
+    display.setTextSize(tam);
     display.getTextBounds(buf,0,0, &x1, &y1, &w, &h); //calc width of new string
     display.setCursor(x - w / 2, y);
 
@@ -810,40 +1051,96 @@ void drawCentreString(String texto, int x, int y)
 }
 
 void menupantalla(){
+  
+  menuplaying=false;
   display.clearDisplay();
+  
+  
   if(menu==0){
     display.drawBitmap(39,0,nota,50,50, WHITE); 
     
     display.setTextSize(1);
     display.setTextColor(WHITE);
-    String texto=recortatexto(archivocargado);
-    drawCentreString(texto,64,52);
+    String texto=recortatexto(archivocargado[canalseleccionado]);
+    drawCentreString(texto,64,52,1);
    
   }else if(menu==1){
     display.drawBitmap(39,0,colores,50,50, WHITE);  
     display.setTextSize(1);
     display.setTextColor(WHITE);
     String texto;
-    if(color==0){ texto=recortatexto("AZUL");}
-    else if(color==1){ texto=recortatexto("ROJO");}
-    else if(color==2){ texto=recortatexto("VERDE");}
-    else if(color==3){ texto=recortatexto("NARANJA");}
-    else if(color==4){ texto=recortatexto("ROSA");}
-    else if(color==5){ texto=recortatexto("BLANCO");}
-    else if(color==6){ texto=recortatexto("MULTICOLOR");}
+    if(color[canalseleccionado]==0){ texto=recortatexto("AZUL");}
+    else if(color[canalseleccionado]==1){ texto=recortatexto("ROJO");}
+    else if(color[canalseleccionado]==2){ texto=recortatexto("VERDE");}
+    else if(color[canalseleccionado]==3){ texto=recortatexto("NARANJA");}
+    else if(color[canalseleccionado]==4){ texto=recortatexto("ROSA");}
+    else if(color[canalseleccionado]==5){ texto=recortatexto("BLANCO");}
+    else if(color[canalseleccionado]==6){ texto=recortatexto("MULTICOLOR");}
     
-    drawCentreString(texto,64,52);
+    drawCentreString(texto,64,52,1);
     
   }else if(menu==2){
+    display.drawBitmap(39,0,colorfondo,50,50, WHITE);  
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    String texto;
+    if(colordefondo==0){ texto=recortatexto("NEGRO");}
+    else if(colordefondo==1){ texto=recortatexto("AZUL");}
+    else if(colordefondo==2){ texto=recortatexto("ROJO");}
+    else if(colordefondo==3){ texto=recortatexto("VERDE");}
+    else if(colordefondo==4){ texto=recortatexto("NARANJA");}
+    else if(colordefondo==5){ texto=recortatexto("ROSA");}
+    else if(colordefondo==6){ texto=recortatexto("BLANCO");}
+    else if(colordefondo==7){ texto=recortatexto("MULTICOLOR");}
+    
+    drawCentreString(texto,64,52,1);
+    
+  }else if(menu==3){
     display.drawBitmap(39,0,pitch,50,50, WHITE);  
     String texto="";
-    texto+=frecuenciawav[botonseleccionado];    
+    texto+=frecuenciawav[canalseleccionado];    
     texto+=" Hz";
-    drawCentreString(texto,64,52);    
-  }  
-
+    drawCentreString(texto,64,52,1);    
+  }else if(menu==4){
+    display.drawBitmap(39,0,altavoz,50,50, WHITE);  
+    String texto="";
+    texto+=(volumen*100);    
+    texto+=" %";
+    drawCentreString(texto,64,52,1);    
+  }else if(menu==5){
+    display.drawBitmap(39,0,sensorhall,50,50, WHITE);  
+    String texto="ON";
+    if(!nivelteclas[canalseleccionado]){ texto="OFF"; }
+    drawCentreString(texto,64,52,1);    
+  }else if(menu==6){
+    display.drawBitmap(39,0,chorus,50,50, WHITE);  
+    
+    String texto="";
+    texto+=efectochorus[canalseleccionado];
+    if(efectochorus[canalseleccionado]<0.1){ texto="OFF"; }
+    drawCentreString(texto,64,52,1);    
+  }else if(menu==7){
+    display.drawBitmap(39,0,save,50,50, WHITE);  
+    
+    String texto="SAVE ?";   
+    drawCentreString(texto,64,52,1);    
+  }else if(menu==8){
+    display.drawBitmap(39,0,load,50,50, WHITE);  
+             
+    String texto="LOAD ?";   
+    drawCentreString(texto,64,52,1);    
+  }
+  
+     
+  display.setTextSize(2);
+  display.setTextColor(WHITE);
+  display.setCursor(4,2);
+  display.println((canalseleccionado+1));
+  
+  
   display.drawBitmap(10,29,triangulo1,10,10, WHITE);  
   display.drawBitmap(107,29,triangulo2,10,10, WHITE);  
+  
   
   display.display();     
   tiempomenu=millis();
@@ -853,7 +1150,7 @@ void menupantalla(){
 void ponerenpantalla(String texto){
 
   display.clearDisplay();
-  display.setTextSize(4);
+  display.setTextSize(2);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
   // Display static text
@@ -862,37 +1159,60 @@ void ponerenpantalla(String texto){
 
 }
 
-void definecolor(int colordefinido){
+void definecolor(int j,int colordefinido){
 
-  if(colordefinido==0){ rcolor=0;gcolor=0;bcolor=200;}
-  else if(colordefinido==1){ rcolor=200;gcolor=0;bcolor=0;}
-  else if(colordefinido==2){ rcolor=0;gcolor=200;bcolor=0;}
-  else if(colordefinido==3){ rcolor=200;gcolor=100;bcolor=50;}
-  else if(colordefinido==4){ rcolor=100;gcolor=50;bcolor=100;}
-  else if(colordefinido==5){ rcolor=50;gcolor=50;bcolor=50;}
+  if(colordefinido==0){ rcolor[j]=0;gcolor[j]=0;bcolor[j]=200;}
+  else if(colordefinido==1){ rcolor[j]=200;gcolor[j]=0;bcolor[j]=0;}
+  else if(colordefinido==2){ rcolor[j]=0;gcolor[j]=200;bcolor[j]=0;}
+  else if(colordefinido==3){ rcolor[j]=200;gcolor[j]=100;bcolor[j]=50;}
+  else if(colordefinido==4){ rcolor[j]=200;gcolor[j]=20;bcolor[j]=20;}
+  else if(colordefinido==5){ rcolor[j]=50;gcolor[j]=50;bcolor[j]=50;}
   
 }
 
 void compruebaluces(){
   
   pixels.begin();
-  delay(10);
+  delay(5);
   for(int i=0;i<69;i++){
-    if(color==6){
+    if(color[canalseleccionado]==6){
           int c=random(0,5);
-          definecolor(c);                    
+          definecolor(canalseleccionado,c);                    
     }
-    pixels.setPixelColor(i,pixels.Color(rcolor,gcolor,bcolor));   
-    delay(10);
+    pixels.setPixelColor(i,pixels.Color(rcolor[canalseleccionado],gcolor[canalseleccionado],bcolor[canalseleccionado]));   
+    delay(5);
     pixels.show();
   }    
 
   for(int i=68;i>=0;i--){
     pixels.setPixelColor(i,pixels.Color(0,0,0));      
-    delay(10);
+    delay(5);
     pixels.show(); 
   }
   
+}
+
+void inicializavariables(){
+  
+   for(int i=0;i<3;i++){ sonidocargado[i]=false; }
+   
+   for(int i=0;i<4;i++){     
+      sonidocanal[i]=-1; 
+      cargarsonido[i]=false; 
+      posarchivos[i]=0;
+      nivelteclas[i]=false;
+      efectochorus[i]=0.0;   
+      archivocargado[i]="None"; 
+      musicatam[i]=0;
+      musicaposicion[i]=0;
+
+      if(i==0){  color[i]=0;rcolor[i]=0;gcolor[i]=0;bcolor[i]=200; }
+      else if(i==1){  color[i]=1;rcolor[i]=200;gcolor[i]=0;bcolor[i]=0; }
+      else if(i==2){  color[i]=2;rcolor[i]=0;gcolor[i]=200;bcolor[i]=0; }
+      else if(i==3){  color[i]=4;rcolor[i]=200;gcolor[i]=20;bcolor[i]=20; }
+
+   }
+   
 }
 
 void setup() {
@@ -906,6 +1226,10 @@ void setup() {
     for(;;);
   }
 
+  
+  //display.ssd1306_command(0x81); 
+  //display.ssd1306_command(2);
+  
   logoenpantalla();
     
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
@@ -929,9 +1253,6 @@ void setup() {
   
   compruebaluces();
   
-  
-
-  tiempob=millis();
   Serial.println("PIANO TURMANDREAMS");
   
   
@@ -962,6 +1283,8 @@ void setup() {
   pinConfig.data_in_num = -1;   // No se utiliza la entrada de datos
   i2s_set_pin(I2S_NUM_0, &pinConfig);
 
+  int tiemposd=millis();
+  
   boolean sigue=true;
   while(sigue){
     Serial.println("Se va a leer la SD");
@@ -972,9 +1295,10 @@ void setup() {
     }else{
       sigue=true;    
     }
+    if((millis()-tiemposd)>10000){ break;}
   }
   
-  printDirectory();
+  leeficheros();
 
   //Serial.println("Comenzamos las pulsaciones");
 
@@ -987,24 +1311,13 @@ void setup() {
                     &Task1,      /* Task handle to keep track of created task */
                     0);          /* pin task to core 0 */ 
 
-  for(int i=0;i<3;i++){ sonidorelleno[i]=false;cargarsonido[i]=false; }
 
-  
-  musicatam=0;
-
-  for(int i=0;i<3;i++){
-    metenotas(0+(i*12));metenotas(2+(i*12));metenotas(4+(i*12)); 
-    metenotas(5+(i*12));metenotas(7+(i*12));metenotas(9+(i*12));metenotas(11+(i*12)); 
-  }
-
-  metenotas(36);metenotas(38);
-  
-  tiempomusica=millis();
-
-  cargarsonido[botonseleccionado]=true;
-
+  inicializavariables();
+ 
   tiempomenu=millis();
 
+  cargasonido(canalseleccionado);
+  
   menupantalla(); 
   
 }
@@ -1016,10 +1329,7 @@ void Task1code( void * pvParameters ){    // en este Core recogemos las peticion
   for(;;){   
     
     if((millis()-tiempomenu)>200){ pulsacionbotones();}
-    recogeteclas();
-    revisaloop();
-    //control();
-    //if((millis()-tiempob)>5000){cargarsonido[botonseleccionado]=true;}
+    recogeteclas();       
     luces(); 
         
     esp_task_wdt_reset();      
@@ -1031,7 +1341,7 @@ void Task1code( void * pvParameters ){    // en este Core recogemos las peticion
 void loop() {
     
     actualizasonidos();    
-    compruebaplayer();
+    reproduce();
     esp_task_wdt_reset();         
   
 }

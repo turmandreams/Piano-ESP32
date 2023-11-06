@@ -1,10 +1,23 @@
-
+#include <EEPROM.h>
 #include "Wire.h"
 
 
 #define SDA_PIN 21
 #define SCL_PIN 22
 #define I2C_SLAVE_ADDR 0x05
+
+#define eeprominicio 0
+
+union Float_Byte{
+  float datoF;
+  byte  datoB[4];
+}unionFB;
+
+union Int_Byte{
+  int datoI;
+  byte  datoB[2];
+}unionIB;
+
 
 int pos=0;
 
@@ -49,6 +62,58 @@ void funcion(int dato){
   
 }
 
+void carga() {
+
+    yield();
+    EEPROM.begin(512);
+    int addr=eeprominicio;    
+    for(int i=0;i<13;i++){
+      
+        EEPROM.get(addr,unionFB.datoB[0]);addr++;
+        EEPROM.get(addr,unionFB.datoB[1]);addr++;
+        EEPROM.get(addr,unionFB.datoB[2]);addr++;
+        EEPROM.get(addr,unionFB.datoB[3]);addr++;
+        minimo[i]=unionFB.datoF;
+
+        EEPROM.get(addr,unionFB.datoB[0]);addr++;
+        EEPROM.get(addr,unionFB.datoB[1]);addr++;
+        EEPROM.get(addr,unionFB.datoB[2]);addr++;
+        EEPROM.get(addr,unionFB.datoB[3]);addr++;
+        maximo[i]=unionFB.datoF;
+        
+        yield();
+        
+    }   
+    
+}
+    
+void guarda(){
+  yield();
+  EEPROM.begin(512);    
+  int addr=eeprominicio;
+  
+  for(int i=0;i<13;i++){
+    
+    unionFB.datoF=minimo[i];  
+    EEPROM.put(addr,unionFB.datoB[0]);addr++;
+    EEPROM.put(addr,unionFB.datoB[1]);addr++;
+    EEPROM.put(addr,unionFB.datoB[2]);addr++;
+    EEPROM.put(addr,unionFB.datoB[3]);addr++;
+   
+    unionFB.datoF=maximo[i];     
+    EEPROM.put(addr,unionFB.datoB[0]);addr++;
+    EEPROM.put(addr,unionFB.datoB[1]);addr++;
+    EEPROM.put(addr,unionFB.datoB[2]);addr++;
+    EEPROM.put(addr,unionFB.datoB[3]);addr++;
+    yield();
+  }
+
+  EEPROM.end();   
+ 
+  delay(500);
+  
+}
+
 void setup() {
 
   Serial.begin(115200);
@@ -69,13 +134,15 @@ void setup() {
   pinMode(13,INPUT);
   pinMode(15,INPUT);
 
-
-
+/*
   for(int i=0;i<13;i++){
       valor[i]=0;
       maximo[i]=0;  
       minimo[i]=5000;  
   }
+*/
+
+  carga();
   
 }
 
@@ -97,7 +164,24 @@ void loop() {
   dato=analogRead(13);funcion(dato);
   dato=analogRead(15);funcion(dato);
  
- 
+  ////Se guarda la calibracion
+  
+  if((val[1]>120)&&(val[2]>120)&&(val[4]>120)&&(val[6]>120)&&(val[8]>120)){  
+      guarda();    
+  }
+
+  ////Se resetea la calibracion y se guarda
+
+  if((val[0]>120)&&(val[3]>120)&&(val[5]>120)&&(val[7]>120)){
+      
+      for(int i=0;i<13;i++){
+         valor[i]=0;
+         maximo[i]=0;  
+         minimo[i]=5000;  
+      }
+      guarda();    
+  }
+  
   //Serial.println("");
 }
 
