@@ -10,7 +10,6 @@ Se puede ver todo el proceso de creación en :
 
 Actualmente está así :
 
-[https://www.youtube.com/watch?v=I0FfIfT1rkw](https://www.youtube.com/watch?v=thzvbOIwvck)
-
+https://www.youtube.com/watch?v=M4f2GWa_b6s
 
 
